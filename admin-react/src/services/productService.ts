@@ -1,0 +1,156 @@
+type ProductPayload = {
+  name: string;
+  category: string;
+  price: number;
+  salePrice?: number | null;
+  rating?: number;
+  salesCount?: number;
+  orderCount?: number;
+  isPopular?: boolean;
+  bestSelling?: boolean;
+  description: string;
+  manufacturerName: string;
+  manufacturerBrand: string;
+  features: string;
+  featureImage?: string;
+  gallery?: string[];
+  specifications?: Array<{ title: string; value: string }>;
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
+  images: string[];
+};
+
+export type ProductItem = {
+  _id: string;
+  name: string;
+  category: { _id: string; name: string } | string;
+  status?: "pending" | "approved" | "rejected";
+  submittedByRole?: "admin" | "seller";
+  sellerName?: string;
+  price: number;
+  salePrice?: number | null;
+  rating?: number;
+  salesCount?: number;
+  orderCount?: number;
+  isPopular?: boolean;
+  bestSelling?: boolean;
+  description: string;
+  manufacturerName: string;
+  manufacturerBrand: string;
+  features: string;
+  featureImage?: string;
+  gallery?: string[];
+  specifications?: Array<{ title: string; value: string }>;
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
+  images: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+const apiBaseUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5000";
+
+const parseJson = async <T>(response: Response): Promise<T> => {
+  const data = (await response.json()) as T;
+  return data;
+};
+
+export const productService = {
+  list: async () => {
+    const response = await fetch(`${apiBaseUrl}/api/products`);
+    const data = await parseJson<{ success: boolean; items: ProductItem[]; message?: string }>(response);
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message ?? "Failed to fetch products");
+    }
+
+    return data.items;
+  },
+  create: async (payload: ProductPayload) => {
+    const response = await fetch(`${apiBaseUrl}/api/products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await parseJson<{ success: boolean; item?: ProductItem; message?: string }>(response);
+
+    if (!response.ok || !data.success || !data.item) {
+      throw new Error(data.message ?? "Failed to create product");
+    }
+
+    return data.item;
+  },
+  update: async (id: string, payload: ProductPayload) => {
+    const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await parseJson<{ success: boolean; item?: ProductItem; message?: string }>(response);
+
+    if (!response.ok || !data.success || !data.item) {
+      throw new Error(data.message ?? "Failed to update product");
+    }
+
+    return data.item;
+  },
+  updateStatus: async (id: string, status: "pending" | "approved" | "rejected") => {
+    const response = await fetch(`${apiBaseUrl}/api/products/${id}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    const data = await parseJson<{ success: boolean; item?: ProductItem; message?: string }>(response);
+
+    if (!response.ok || !data.success || !data.item) {
+      throw new Error(data.message ?? "Failed to update product status");
+    }
+
+    return data.item;
+  },
+  remove: async (id: string) => {
+    const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await parseJson<{ success: boolean; message?: string }>(response);
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message ?? "Failed to delete product");
+    }
+  },
+  uploadImages: async (files: File[]) => {
+    if (!files.length) {
+      return [] as string[];
+    }
+
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append("images", file);
+    });
+
+    const response = await fetch(`${apiBaseUrl}/api/products/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await parseJson<{ success: boolean; urls?: string[]; message?: string }>(response);
+
+    if (!response.ok || !data.success || !data.urls) {
+      throw new Error(data.message ?? "Failed to upload images");
+    }
+
+    return data.urls;
+  },
+};
