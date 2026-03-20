@@ -1,6 +1,6 @@
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import { Alert, Button, Checkbox, Chip, CircularProgress, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert,  Checkbox, Chip, CircularProgress, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
 import { adminService, type CustomerHistoryItem } from "../../services/adminService.ts";
@@ -87,9 +87,9 @@ export const CustomersPage = () => {
               sx={{ minWidth: { xs: 220, md: 420 } }}
             />
           </Stack>
-          <Button variant="contained" sx={{ bgcolor: "#34c38f", "&:hover": { bgcolor: "#2eb27f" } }} disabled>
+          {/* <Button variant="contained" sx={{ bgcolor: "#34c38f", "&:hover": { bgcolor: "#2eb27f" } }} disabled>
             Customer History
-          </Button>
+          </Button> */}
         </Stack>
 
         {isLoading ? (
