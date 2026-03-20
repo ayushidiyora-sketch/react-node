@@ -12,6 +12,9 @@ export type Product = {
   backendId?: string;
   wishlistItemId?: string;
   galleryImages?: string[];
+  sellerName?: string;
+  sellerProfileImage?: string;
+  brandName?: string;
   slug: string;
   name: string;
   category: string;

@@ -9,6 +9,12 @@ export type SellerApplicationPayload = {
   kycFiles?: File[];
 };
 
+export type SellerBrandLogoItem = {
+  logo: string;
+  brandName?: string;
+  shopName?: string;
+};
+
 const apiBaseUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5000";
 
 const parseJson = async <T>(response: Response): Promise<T> => {
@@ -17,6 +23,17 @@ const parseJson = async <T>(response: Response): Promise<T> => {
 };
 
 export const sellerService = {
+  getPublicBrandLogos: async () => {
+    const response = await fetch(`${apiBaseUrl}/api/sellers/brands/public`);
+    const data = await parseJson<{ success: boolean; items?: SellerBrandLogoItem[]; message?: string }>(response);
+
+    if (!response.ok || !data.success || !Array.isArray(data.items)) {
+      throw new Error(data.message ?? "Failed to fetch brand logos");
+    }
+
+    return data.items;
+  },
+
   apply: async (payload: SellerApplicationPayload) => {
     const formData = new FormData();
     formData.append("fullName", payload.fullName);

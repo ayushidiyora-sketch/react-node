@@ -8,9 +8,10 @@ import { useSearchParams } from "react-router-dom";
 import type { Product } from "@/lib/products";
 import { categoryService } from "@/services/categoryService";
 import { normalizeStoreProduct, productService } from "@/services/productService";
+import { sellerService } from "@/services/sellerService";
 
-const brands = ["Apple", "Samsung", "Walton", "OnePlus", "Vivo", "Oppo", "Xiaomi", "Others"];
 const sizes = ["S", "M", "XL", "XXL", "Slim Fit"];
+const productsPerPage = 3;
 
 const FilterSection = ({ title, children }: { title: string; children: React.ReactNode }) => {
   const [open, setOpen] = useState(true);
@@ -28,9 +29,12 @@ const FilterSection = ({ title, children }: { title: string; children: React.Rea
 const Shop = () => {
   const [searchParams] = useSearchParams();
   const [sortBy, setSortBy] = useState("default");
+  const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [apiBrands, setApiBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -45,6 +49,20 @@ const Shop = () => {
         const categoryNames = categoryItems.map(item => item.name);
         const fallbackCategories = Array.from(new Set(mappedProducts.map(item => item.category)));
         setCategories(categoryNames.length ? categoryNames : fallbackCategories);
+
+        try {
+          const brandItems = await sellerService.getPublicBrandLogos();
+          const normalizedApiBrands = Array.from(
+            new Set(
+              brandItems
+                .map(item => String(item.brandName || "").trim())
+                .filter(Boolean),
+            ),
+          );
+          setApiBrands(normalizedApiBrands);
+        } catch {
+          setApiBrands([]);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to load products";
         setLoadError(message);
@@ -73,10 +91,46 @@ const Shop = () => {
     );
   };
 
+  const toggleBrand = (brandName: string) => {
+    setSelectedBrands(previous =>
+      previous.includes(brandName)
+        ? previous.filter(item => item !== brandName)
+        : [...previous, brandName],
+    );
+  };
+
+  const brandCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    products.forEach(item => {
+      const normalizedBrand = String(item.brandName || "").trim() || "Others";
+      counts.set(normalizedBrand, (counts.get(normalizedBrand) || 0) + 1);
+    });
+
+    return counts;
+  }, [products]);
+
+  const brands = useMemo(() => {
+    const productBrands = Array.from(brandCounts.keys());
+    const merged = [...apiBrands];
+
+    productBrands.forEach(brand => {
+      if (!merged.includes(brand)) {
+        merged.push(brand);
+      }
+    });
+
+    return merged;
+  }, [apiBrands, brandCounts]);
+
   const allProducts = useMemo(() => {
-    const filteredProducts = selectedCategories.length
-      ? products.filter(item => selectedCategories.includes(item.category))
-      : [...products];
+    const filteredProducts = products.filter(item => {
+      const categoryMatched = !selectedCategories.length || selectedCategories.includes(item.category);
+      const normalizedBrand = String(item.brandName || "").trim() || "Others";
+      const brandMatched = !selectedBrands.length || selectedBrands.includes(normalizedBrand);
+
+      return categoryMatched && brandMatched;
+    });
 
     return filteredProducts.sort((left, right) => {
     if (sortBy === "price-low") {
@@ -93,7 +147,26 @@ const Shop = () => {
 
     return left.id - right.id;
     });
-  }, [products, selectedCategories, sortBy]);
+  }, [products, selectedCategories, selectedBrands, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(allProducts.length / productsPerPage));
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * productsPerPage;
+    return allProducts.slice(startIndex, startIndex + productsPerPage);
+  }, [allProducts, currentPage]);
+
+  const rangeStart = allProducts.length === 0 ? 0 : (currentPage - 1) * productsPerPage + 1;
+  const rangeEnd = allProducts.length === 0 ? 0 : Math.min(currentPage * productsPerPage, allProducts.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortBy, selectedCategories, selectedBrands]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <Layout showNewsletter={false}>
@@ -128,8 +201,13 @@ const Shop = () => {
               <div className="space-y-2">
                 {brands.map(brand => (
                   <label key={brand} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                    <input type="checkbox" className="rounded border-border accent-primary" />
-                    {brand}
+                    <input
+                      type="checkbox"
+                      checked={selectedBrands.includes(brand)}
+                      onChange={() => toggleBrand(brand)}
+                      className="rounded border-border accent-primary"
+                    />
+                    {brand} ({brandCounts.get(brand) || 0})
                   </label>
                 ))}
               </div>
@@ -150,7 +228,7 @@ const Shop = () => {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-6">
               <p className="text-sm text-muted-foreground">
-                Showing <strong className="text-foreground">1-{allProducts.length}</strong> of {products.length} results
+                Showing <strong className="text-foreground">{rangeStart}-{rangeEnd}</strong> of {allProducts.length} results
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Sort by:</span>
@@ -177,8 +255,45 @@ const Shop = () => {
             ) : null}
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-              {allProducts.map(p => <ProductCard key={`${p.id}-${p.slug}`} product={p} />)}
+              {paginatedProducts.map(p => <ProductCard key={`${p.id}-${p.slug}`} product={p} />)}
             </div>
+
+            {!isLoading && !loadError && allProducts.length > productsPerPage ? (
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(previous => Math.max(1, previous - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                      page === currentPage
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(previous => Math.min(totalPages, previous + 1))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

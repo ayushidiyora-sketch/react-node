@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { PageBanner } from "@/components/PageBanner";
 import { useCart } from "@/contexts/CartContext";
+import { PayPalButton } from "@/components/PayPalButton";
 import { toast } from "@/components/ui/sonner";
 import { saveLastOrder } from "@/lib/order";
 import { checkoutService } from "@/services/checkoutService";
@@ -13,8 +14,6 @@ import { paymentService } from "@/services/paymentService";
 import { orderService } from "@/services/orderService";
 
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 const stripePaymentMethod = "Credit / Debit Card";
 
 const buildFallbackChargeSummary = (subtotal: number, country?: string) => {
@@ -49,7 +48,12 @@ const cardElementOptions = {
   },
 };
 
-const CheckoutContent = () => {
+type CheckoutContentProps = {
+  stripeInitializing: boolean;
+  stripeReady: boolean;
+};
+
+const CheckoutContent = ({ stripeInitializing, stripeReady }: CheckoutContentProps) => {
   const { items, subtotal, clearCart } = useCart();
   const navigate = useNavigate();
   const stripe = useStripe();
@@ -67,12 +71,14 @@ const CheckoutContent = () => {
   const [paymentMethod, setPaymentMethod] = useState(stripePaymentMethod);
   const [cardError, setCardError] = useState("");
   const [chargeSummary, setChargeSummary] = useState(() => buildFallbackChargeSummary(subtotal, "United States"));
+  const [paypalError, setPaypalError] = useState("");
   const [isChargesLoading, setIsChargesLoading] = useState(false);
 
   const shippingFee = chargeSummary.shippingAmount;
   const tax = chargeSummary.taxAmount;
   const grandTotal = chargeSummary.total;
   const isStripeMethod = paymentMethod === stripePaymentMethod;
+  const isPayPalMethod = paymentMethod === "PayPal";
   const stripeCountryCode = useMemo(() => {
     if (country === "United States") {
       return "US";
@@ -135,6 +141,11 @@ const currencyFormatter = useMemo(
     };
   }, [items.length, subtotal, country]);
 
+  useEffect(() => {
+    setCardError("");
+    setPaypalError("");
+  }, [paymentMethod]);
+
   const handlePlaceOrder = async () => {
     if (items.length === 0) {
       return;
@@ -145,8 +156,13 @@ const currencyFormatter = useMemo(
       return;
     }
 
-    if (isStripeMethod && !stripePublishableKey) {
-      toast.error("Stripe publishable key is missing. Add VITE_STRIPE_PUBLISHABLE_KEY.");
+    if (isPayPalMethod) {
+      toast.info("Click the PayPal button below to complete payment.");
+      return;
+    }
+
+    if (isStripeMethod && !stripeReady) {
+      toast.error("Stripe payment is not configured right now. Please choose another payment method.");
       return;
     }
 
@@ -275,6 +291,89 @@ const currencyFormatter = useMemo(
     }
   };
 
+  const handlePayPalSuccess = async () => {
+    if (items.length === 0) {
+      return;
+    }
+
+    if (!firstName || !lastName || !email || !address || !city || !stateName || !zipCode) {
+      toast.error("Please fill all required checkout fields.");
+      return;
+    }
+
+    setIsPlacingOrder(true);
+    setPaypalError("");
+
+    try {
+      const orderId = `ORD-${Date.now().toString().slice(-8)}`;
+
+      saveLastOrder({
+        id: orderId,
+        placedAt: new Date().toISOString(),
+        customer: {
+          firstName,
+          lastName,
+          email,
+          phone,
+          address,
+          city,
+          state: stateName,
+          zipCode,
+          country,
+        },
+        paymentMethod: "PayPal",
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.salePrice,
+          total: item.salePrice * item.quantity,
+        })),
+        totals: {
+          subtotal: chargeSummary.subtotal,
+          shipping: shippingFee,
+          tax,
+          grandTotal,
+        },
+      });
+
+      const fullAddress = `${address}, ${city}, ${stateName}, ${zipCode}, ${country}`;
+
+      await orderService.create({
+        orderId,
+        customerName: `${firstName} ${lastName}`.trim(),
+        email,
+        address: fullAddress,
+        products: items.map(item => ({
+          productId: String(item.id),
+          name: item.name,
+          image: item.image,
+          price: item.salePrice,
+          quantity: item.quantity,
+        })),
+        subtotal: chargeSummary.subtotal,
+        shippingAmount: chargeSummary.shippingAmount,
+        taxAmount: chargeSummary.taxAmount,
+        taxRate: chargeSummary.taxRate,
+        currency: chargeSummary.currency,
+        country: chargeSummary.country,
+        totalPrice: grandTotal,
+        paymentMethod: "PayPal",
+        orderDate: new Date().toISOString(),
+      });
+
+      await clearCart();
+      toast.success("Order placed successfully.");
+      navigate(`/thank-you/${orderId}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not create order. Please try again.";
+      setPaypalError(message);
+      toast.error(message);
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
   return (
     <Layout>
       <PageBanner title="Checkout" breadcrumbs={[{ label: "Home", path: "/" }, { label: "Checkout" }]} />
@@ -324,7 +423,13 @@ const currencyFormatter = useMemo(
                   <h2 className="mb-4 text-xl font-semibold text-foreground">Payment Method</h2>
                   <div className="space-y-3 text-sm text-muted-foreground">
                     <label className="flex items-center gap-2">
-                      <input type="radio" name="payment" checked={paymentMethod === stripePaymentMethod} onChange={() => setPaymentMethod(stripePaymentMethod)} className="accent-primary" />
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={paymentMethod === stripePaymentMethod}
+                        onChange={() => setPaymentMethod(stripePaymentMethod)}
+                        className="accent-primary"
+                      />
                       Credit / Debit Card (Stripe)
                     </label>
                     <label className="flex items-center gap-2">
@@ -338,16 +443,33 @@ const currencyFormatter = useMemo(
 
                     {isStripeMethod ? (
                       <div className="mt-3 rounded-md border border-border bg-background p-3">
-                        {stripePromise ? (
+                        {stripeReady ? (
                           <CardElement options={cardElementOptions} />
                         ) : (
-                          <p className="text-sm text-red-600">Stripe is not configured. Add VITE_STRIPE_PUBLISHABLE_KEY in your frontend env.</p>
+                          <p className="text-sm text-muted-foreground">Loading card input...</p>
                         )}
                       </div>
                     ) : null}
 
                     {cardError ? (
                       <p className="text-sm text-red-600">{cardError}</p>
+                    ) : null}
+
+                    {isPayPalMethod ? (
+                      <PayPalButton
+                        amount={grandTotal}
+                        orderId={`ORD-${Date.now().toString().slice(-8)}`}
+                        customerEmail={email}
+                        onSuccess={() => {
+                          void handlePayPalSuccess();
+                        }}
+                        onError={setPaypalError}
+                        isLoading={isPlacingOrder}
+                      />
+                    ) : null}
+
+                    {paypalError ? (
+                      <p className="text-sm text-red-600">{paypalError}</p>
                     ) : null}
                   </div>
                 </div>
@@ -409,9 +531,57 @@ const currencyFormatter = useMemo(
 };
 
 const Checkout = () => {
+  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
+  const [stripeReady, setStripeReady] = useState(false);
+  const [stripeInitializing, setStripeInitializing] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const initStripe = async () => {
+      const envKey = String(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "").trim();
+
+      if (envKey) {
+        if (isActive) {
+          setStripePromise(loadStripe(envKey));
+          setStripeReady(true);
+        }
+        return;
+      }
+
+      try {
+        const config = await paymentService.getPaymentConfig();
+        const runtimeKey = String(config.stripePublishableKey || "").trim();
+
+        if (runtimeKey && isActive) {
+          setStripePromise(loadStripe(runtimeKey));
+          setStripeReady(true);
+          return;
+        }
+      } catch {
+        // Keep checkout usable with non-card payment methods.
+      }
+
+      if (isActive) {
+        setStripePromise(null);
+        setStripeReady(false);
+      }
+
+      if (isActive) {
+        setStripeInitializing(false);
+      }
+    };
+
+    void initStripe();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   return (
     <Elements stripe={stripePromise ?? null}>
-      <CheckoutContent />
+      <CheckoutContent stripeInitializing={stripeInitializing} stripeReady={stripeReady} />
     </Elements>
   );
 };

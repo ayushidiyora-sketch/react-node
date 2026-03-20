@@ -1,4 +1,4 @@
-import { Avatar, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Avatar, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,8 +15,11 @@ type SellerUser = {
   status: string;
 };
 
+const pageSize = 10;
+
 export const SellerUsersPage = () => {
   const [items, setItems] = useState<SellerUser[]>([]);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const loadItems = async () => {
@@ -31,6 +34,17 @@ export const SellerUsersPage = () => {
 
     void loadItems();
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pageRows = items.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = items.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = items.length === 0 ? 0 : Math.min(page * pageSize, items.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <Stack spacing={2.2}>
@@ -53,7 +67,7 @@ export const SellerUsersPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map(item => (
+            {pageRows.map(item => (
               <TableRow key={item.id} hover>
                 <TableCell>
                 <div className="seller-user-profile"> <Avatar
@@ -74,6 +88,22 @@ export const SellerUsersPage = () => {
             ))}
           </TableBody>
         </Table>
+
+        {items.length > 0 ? (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
+            <Typography variant="body2" color="var(--skote-subtle)">
+              Showing {startRow}-{endRow} of {items.length} Results
+            </Typography>
+            <Pagination
+              page={page}
+              count={totalPages}
+              onChange={(_event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              size="small"
+            />
+          </Stack>
+        ) : null}
       </Paper>
     </Stack>
   );

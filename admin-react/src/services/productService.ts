@@ -50,7 +50,48 @@ export type ProductItem = {
   updatedAt: string;
 };
 
-const apiBaseUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5000";
+const apiBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5001").replace(/\/$/, "");
+
+const toAbsoluteProductImageUrl = (value?: string) => {
+  const normalized = String(value || "").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {
+    return normalized;
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    try {
+      const parsed = new URL(normalized);
+      const shouldRewriteLocalUploadUrl =
+        ["localhost", "127.0.0.1"].includes(parsed.hostname) && parsed.pathname.startsWith("/uploads/");
+
+      if (shouldRewriteLocalUploadUrl) {
+        return `${apiBaseUrl}${parsed.pathname}`;
+      }
+    } catch {
+      // Keep original value if URL parsing fails.
+    }
+
+    return normalized;
+  }
+
+  if (normalized.startsWith("/")) {
+    return `${apiBaseUrl}${normalized}`;
+  }
+
+  return `${apiBaseUrl}/uploads/products/${normalized}`;
+};
+
+const normalizeProductItem = (item: ProductItem): ProductItem => ({
+  ...item,
+  featureImage: toAbsoluteProductImageUrl(item.featureImage),
+  gallery: Array.isArray(item.gallery) ? item.gallery.map(image => toAbsoluteProductImageUrl(image)).filter(Boolean) : [],
+  images: Array.isArray(item.images) ? item.images.map(image => toAbsoluteProductImageUrl(image)).filter(Boolean) : [],
+});
 
 const parseJson = async <T>(response: Response): Promise<T> => {
   const data = (await response.json()) as T;
@@ -66,7 +107,7 @@ export const productService = {
       throw new Error(data.message ?? "Failed to fetch products");
     }
 
-    return data.items;
+    return data.items.map(normalizeProductItem);
   },
   create: async (payload: ProductPayload) => {
     const response = await fetch(`${apiBaseUrl}/api/products`, {
@@ -83,7 +124,7 @@ export const productService = {
       throw new Error(data.message ?? "Failed to create product");
     }
 
-    return data.item;
+    return normalizeProductItem(data.item);
   },
   update: async (id: string, payload: ProductPayload) => {
     const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
@@ -100,7 +141,7 @@ export const productService = {
       throw new Error(data.message ?? "Failed to update product");
     }
 
-    return data.item;
+    return normalizeProductItem(data.item);
   },
   updateStatus: async (id: string, status: "pending" | "approved" | "rejected") => {
     const response = await fetch(`${apiBaseUrl}/api/products/${id}/status`, {
@@ -117,7 +158,7 @@ export const productService = {
       throw new Error(data.message ?? "Failed to update product status");
     }
 
-    return data.item;
+    return normalizeProductItem(data.item);
   },
   remove: async (id: string) => {
     const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
@@ -151,6 +192,6 @@ export const productService = {
       throw new Error(data.message ?? "Failed to upload images");
     }
 
-    return data.urls;
+    return data.urls.map(url => toAbsoluteProductImageUrl(url)).filter(Boolean);
   },
 };

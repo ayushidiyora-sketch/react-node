@@ -275,7 +275,7 @@ export const AdminLayout = () => {
         </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flex: 1 }}>
+      <Box component="main" sx={{ flex: 1, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <AppBar
           position="sticky"
           elevation={0}
@@ -419,7 +419,7 @@ export const AdminLayout = () => {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Box sx={{ p: { xs: 2, md: 3 }, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5}>
             <Typography variant="h5" fontWeight={700} color="var(--skote-heading)">Dashboard</Typography>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -428,6 +428,19 @@ export const AdminLayout = () => {
             </Stack>
           </Stack>
           <Outlet />
+        </Box>
+        <Box
+          component="footer"
+          sx={{
+            px: { xs: 2, md: 3 },
+            py: 1.6,
+            borderTop: "1px solid var(--skote-border)",
+            bgcolor: "#ffffff",
+          }}
+        >
+          <Typography variant="body2" color="var(--skote-subtle)">
+            © {new Date().getFullYear()} ShopO Admin Panel. All rights reserved.
+          </Typography>
         </Box>
       </Box>
     </Box>

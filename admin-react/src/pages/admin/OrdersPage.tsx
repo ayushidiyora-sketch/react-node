@@ -1,6 +1,6 @@
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import { Box, Button, Checkbox, Chip, MenuItem, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Box, Button, Checkbox, Chip, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,7 +17,7 @@ type OrderRow = {
 };
 
 const methodCycle = ["Mastercard", "Visa", "Paypal", "COD"];
-const pageSizeOptions = [10, 20, 30];
+const pageSize = 10;
 
 const statusStyle = (status: string) => {
   if (status === "Paid") {
@@ -42,7 +42,6 @@ const statusStyle = (status: string) => {
 export const OrdersPage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<OrderRow[]>([]);
 
@@ -76,6 +75,14 @@ export const OrdersPage = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const pageRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = filteredRows.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = filteredRows.length === 0 ? 0 : Math.min(page * pageSize, filteredRows.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <Stack spacing={2.2}>
@@ -87,20 +94,6 @@ export const OrdersPage = () => {
       <Paper sx={{ p: 2.2, borderRadius: 2.5, border: "1px solid var(--skote-border)", boxShadow: "none" }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" mb={2}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <TextField
-              select
-              size="small"
-              value={pageSize}
-              onChange={event => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-              sx={{ minWidth: 140 }}
-            >
-              {pageSizeOptions.map(option => (
-                <MenuItem key={option} value={option}>Show {option}</MenuItem>
-              ))}
-            </TextField>
             <TextField
               size="small"
               placeholder="26 records..."
@@ -163,7 +156,7 @@ export const OrdersPage = () => {
 
         <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
           <Typography variant="body2" color="var(--skote-subtle)">
-            Showing {Math.min(pageSize, filteredRows.length)} of {filteredRows.length} Results
+            Showing {startRow}-{endRow} of {filteredRows.length} Results
           </Typography>
           <Pagination
             page={page}

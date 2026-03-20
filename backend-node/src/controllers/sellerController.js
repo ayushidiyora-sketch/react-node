@@ -1055,6 +1055,44 @@ const getAdminSellerBrands = async (_req, res, next) => {
   }
 };
 
+const getPublicSellerBrandLogos = async (_req, res, next) => {
+  try {
+    const items = await SellerBrand.find({
+      status: "approved",
+      logo: { $exists: true, $ne: "" },
+    })
+      .select("brandName logo companyName sellerName")
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
+
+    const uniqueByLogo = new Set();
+    const logos = [];
+
+    for (const item of items) {
+      const normalizedLogo = String(item.logo || "").trim();
+
+      if (!normalizedLogo) {
+        continue;
+      }
+
+      if (uniqueByLogo.has(normalizedLogo)) {
+        continue;
+      }
+
+      uniqueByLogo.add(normalizedLogo);
+      logos.push({
+        logo: normalizedLogo,
+        brandName: String(item.brandName || "").trim(),
+        shopName: String(item.companyName || item.sellerName || "").trim(),
+      });
+    }
+
+    return res.status(200).json({ success: true, items: logos });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getAdminSellerBrandById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -1421,6 +1459,7 @@ module.exports = {
   getMySellerBrandById,
   updateMySellerBrand,
   deleteMySellerBrand,
+  getPublicSellerBrandLogos,
   getAdminSellerBrands,
   getAdminSellerBrandById,
   createAdminSellerBrand,

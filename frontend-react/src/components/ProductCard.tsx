@@ -9,6 +9,9 @@ export const ProductCard = ({ product }: { product: Product }) => {
   const { addItem } = useCart();
   const { isInWishlist, toggleItem } = useWishlist();
   const navigate = useNavigate();
+  const sellerName = product.sellerName || "Shopo Seller";
+  const brandName = product.brandName || "Unbranded";
+  const sellerInitial = sellerName.charAt(0).toUpperCase();
 
   return (
     <div className="group bg-card rounded-lg border border-border overflow-hidden hover:shadow-lg transition-shadow duration-300">
@@ -52,6 +55,23 @@ export const ProductCard = ({ product }: { product: Product }) => {
           </div>
           <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2 leading-snug hover:text-primary transition-colors">{product.name}</h3>
           <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.shortDescription}</p>
+          <div className="border-border/70 flex gap-2 items-center mb-3 py-2 rounded-md">
+            {product.sellerProfileImage ? (
+              <img
+                src={product.sellerProfileImage}
+                alt={sellerName}
+                className="h-7 w-7 rounded-full object-cover"
+              />
+            ) : (
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                {sellerInitial}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-foreground">{sellerName}</p>
+              <p className="truncate text-[11px] text-muted-foreground">Brand: {brandName}</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-price-sale font-bold">${product.salePrice.toFixed(2)}</span>
             <span className="text-muted-foreground line-through text-sm">${product.originalPrice.toFixed(2)}</span>
@@ -63,7 +83,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
             await addItem(product);
             navigate("/cart");
           }}
-          className="mt-3 w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:opacity-90 flex items-center justify-center gap-2"
+          className="mt-3 w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium group-hover:opacity-100 transition-opacity duration-300 hover:opacity-90 flex items-center justify-center gap-2"
         >
           <ShoppingCart className="w-4 h-4" /> Add To Cart
         </button>

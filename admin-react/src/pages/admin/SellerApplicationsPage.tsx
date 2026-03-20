@@ -1,4 +1,4 @@
-import { Button, Chip, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Button, Chip, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,8 +26,11 @@ const statusColor = (status: SellerApplication["status"]) => {
   return "warning" as const;
 };
 
+const pageSize = 10;
+
 export const SellerApplicationsPage = () => {
   const [items, setItems] = useState<SellerApplication[]>([]);
+  const [page, setPage] = useState(1);
 
   const loadApplications = async () => {
     try {
@@ -58,6 +61,17 @@ export const SellerApplicationsPage = () => {
     }),
     [items],
   );
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pageRows = items.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = items.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = items.length === 0 ? 0 : Math.min(page * pageSize, items.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const updateStatus = async (id: string, status: SellerApplication["status"]) => {
     try {
@@ -115,7 +129,7 @@ export const SellerApplicationsPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map(item => (
+            {pageRows.map(item => (
               <TableRow key={item._id} hover>
                 <TableCell>
                   <Typography fontWeight={600}>{item.fullName}</Typography>
@@ -158,6 +172,22 @@ export const SellerApplicationsPage = () => {
             ))}
           </TableBody>
         </Table>
+
+        {items.length > 0 ? (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
+            <Typography variant="body2" color="var(--skote-subtle)">
+              Showing {startRow}-{endRow} of {items.length} Results
+            </Typography>
+            <Pagination
+              page={page}
+              count={totalPages}
+              onChange={(_event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              size="small"
+            />
+          </Stack>
+        ) : null}
 
         {items.length === 0 ? (
           <Typography sx={{ mt: 2, textAlign: "center", color: "var(--skote-subtle)" }}>

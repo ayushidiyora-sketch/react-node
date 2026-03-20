@@ -25,7 +25,10 @@ type ApiProduct = {
   }>;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const configuredBackendUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim().replace(/\/$/, "");
+const API_BASE_URL = configuredBackendUrl
+  ? `${configuredBackendUrl}/api`
+  : (import.meta.env.VITE_API_BASE_URL ?? "/api");
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {

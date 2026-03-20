@@ -1,4 +1,5 @@
 import type { Product } from "@/lib/products";
+import { toAbsoluteMediaUrl } from "@/utils/mediaUrl";
 
 export type StoreProductItem = {
   _id: string;
@@ -14,6 +15,15 @@ export type StoreProductItem = {
   bestSelling?: boolean;
   description?: string;
   features?: string;
+  manufacturerName?: string;
+  manufacturerBrand?: string;
+  sellerName?: string;
+  submittedBy?: {
+    _id?: string;
+    name?: string;
+    fullName?: string;
+    profileImage?: string;
+  } | string | null;
   featureImage?: string;
   gallery?: string[];
   specifications?: Array<{ title: string; value: string }>;
@@ -29,7 +39,7 @@ export type HomeSectionProducts = {
   popularSales: StoreProductItem[];
 };
 
-const apiBaseUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5000";
+const apiBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5001").replace(/\/$/, "");
 const imageFallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='24'%3ENo Image%3C/text%3E%3C/svg%3E";
 
 const toSlug = (value: string) =>
@@ -72,6 +82,15 @@ export const normalizeStoreProduct = (item: StoreProductItem, index: number): Pr
   const originalPrice = salePrice < item.price ? item.price : Number((salePrice * 1.15).toFixed(2));
   const stableId = stringToStableId(item._id || `${item.name}-${index}`);
   const featureText = item.features?.toLowerCase() ?? "";
+  const submittedBy = typeof item.submittedBy === "object" && item.submittedBy ? item.submittedBy : null;
+  const sellerName = item.sellerName || submittedBy?.fullName || submittedBy?.name || "";
+  const galleryImages = Array.from(
+    new Set(
+      [item.featureImage, ...(item.gallery || []), ...(item.images || [])]
+        .map(path => toAbsoluteMediaUrl(path))
+        .filter(Boolean),
+    ),
+  );
 
   return {
     id: stableId,
@@ -79,7 +98,14 @@ export const normalizeStoreProduct = (item: StoreProductItem, index: number): Pr
     slug: `${toSlug(item.name)}-${stableId}`,
     name: item.name,
     category: categoryName,
-    image: item.featureImage || item.gallery?.[0] || item.images?.[0] || imageFallback,
+    image: toAbsoluteMediaUrl(item.featureImage)
+      || toAbsoluteMediaUrl(item.gallery?.[0])
+      || toAbsoluteMediaUrl(item.images?.[0])
+      || imageFallback,
+    galleryImages: galleryImages.length ? galleryImages : undefined,
+    sellerName,
+    sellerProfileImage: toAbsoluteMediaUrl(submittedBy?.profileImage),
+    brandName: item.manufacturerBrand || item.manufacturerName || "",
     originalPrice,
     salePrice,
     badge: item.isPopular || featureText.includes("popular") ? "popular" : item.bestSelling || featureText.includes("new") ? "new" : null,
@@ -120,7 +146,7 @@ export const productService = {
       throw new Error(data.message ?? "Failed to upload images");
     }
 
-    return data.urls;
+    return data.urls.map(url => toAbsoluteMediaUrl(url)).filter(Boolean);
   },
 
   getNewArrivals: async (limit = 8) => fetchProductsByPath(`/api/products/new-arrivals?limit=${limit}`),

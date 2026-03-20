@@ -62,4 +62,4 @@ const sellerSubscriptionRequestSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-module.exports = mongoose.model("SellerSubscriptionRequest", sellerSubscriptionRequestSchema);
+module.exports = mongoose.model("SellerSubscriptionRequest", sellerSubscriptionRequestSchema); 

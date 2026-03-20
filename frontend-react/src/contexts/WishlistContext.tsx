@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/ui/sonner";
 import { type Product } from "@/lib/products";
 import { wishlistService, type WishlistApiItem } from "@/services/wishlistService";
+import { toAbsoluteMediaUrl } from "@/utils/mediaUrl";
 
 const WISHLIST_STORAGE_KEY = "shopo-wishlist-items";
 
@@ -76,7 +77,7 @@ const mapWishlistItems = (items: WishlistApiItem[]): Product[] =>
         slug: `${toSlug(item.product.name)}-${stableId}`,
         name: item.product.name,
         category: categoryName,
-        image: item.product.featureImage || item.product.images?.[0] || imageFallback,
+        image: toAbsoluteMediaUrl(item.product.featureImage) || toAbsoluteMediaUrl(item.product.images?.[0]) || imageFallback,
         originalPrice,
         salePrice,
         badge: null,

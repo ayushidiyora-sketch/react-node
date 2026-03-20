@@ -8,62 +8,9 @@ import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { getProductBySlug, products, type Product } from "@/lib/products";
-import { productService, type StoreProductItem } from "@/services/productService";
+import { normalizeStoreProduct, productService } from "@/services/productService";
 
 const imageFallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='24'%3ENo Image%3C/text%3E%3C/svg%3E";
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-
-const stringToStableId = (value: string) => {
-  let hash = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) | 0;
-  }
-
-  return Math.abs(hash) || 1;
-};
-
-const normalizeProduct = (item: StoreProductItem, index: number): Product => {
-  const categoryName = typeof item.category === "string" ? item.category : item.category?.name || "Uncategorized";
-  const salePrice = item.salePrice ?? item.price;
-  const originalPrice = salePrice < item.price ? item.price : Number((salePrice * 1.15).toFixed(2));
-  const stableId = stringToStableId(item._id || `${item.name}-${index}`);
-  const galleryImages = Array.from(
-    new Set([
-      item.featureImage,
-      ...(item.gallery || []),
-      ...(item.images || []),
-    ].filter(Boolean) as string[]),
-  );
-
-  return {
-    id: stableId,
-    backendId: item._id,
-    slug: `${toSlug(item.name)}-${stableId}`,
-    name: item.name,
-    category: categoryName,
-    image: item.featureImage || item.gallery?.[0] || item.images?.[0] || imageFallback,
-    galleryImages: galleryImages.length ? galleryImages : undefined,
-    originalPrice,
-    salePrice,
-    badge: item.features?.toLowerCase().includes("new") ? "new" : item.features?.toLowerCase().includes("popular") ? "popular" : null,
-    stock: undefined,
-    rating: item.rating ?? 0,
-    shortDescription: item.description?.slice(0, 120) || "No description available.",
-    description: item.description || "",
-    specifications: (item.specifications || []).map(spec => ({
-      label: spec.title,
-      value: spec.value,
-    })),
-  };
-};
 
 const ProductDetails = () => {
   const thumbnailWindowSize = 5;
@@ -79,7 +26,7 @@ const ProductDetails = () => {
         const items = await productService.list();
 
         if (isMounted) {
-          setApiProducts(items.map(normalizeProduct));
+          setApiProducts(items.map(normalizeStoreProduct));
         }
       } catch {
         // Keep static fallback behavior when API is unavailable.
@@ -132,6 +79,9 @@ const ProductDetails = () => {
   const { addItem } = useCart();
   const { isInWishlist, toggleItem } = useWishlist();
   const navigate = useNavigate();
+  const sellerName = product?.sellerName || "Shopo Seller";
+  const brandName = product?.brandName || "Unbranded";
+  const sellerInitial = sellerName.charAt(0).toUpperCase();
 
   useEffect(() => {
     setSelectedImage(galleryImages[0]);
@@ -284,6 +234,17 @@ const ProductDetails = () => {
                   <Star key={index} className={`h-4 w-4 ${index < Math.floor(product.rating) ? "fill-current text-star" : "text-muted-foreground"}`} />
                 ))}
                 <span className="text-sm text-muted-foreground">{product.rating.toFixed(1)} rating</span>
+              </div>
+              <div className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+                {product.sellerProfileImage ? (
+                  <img src={product.sellerProfileImage} alt={sellerName} className="h-11 w-11 rounded-full object-cover" />
+                ) : (
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{sellerInitial}</span>
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{sellerName}</p>
+                  <p className="text-xs text-muted-foreground">Brand: {brandName}</p>
+                </div>
               </div>
               <p className="mb-6 text-base leading-7 text-muted-foreground">{product.description}</p>
 

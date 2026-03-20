@@ -75,7 +75,7 @@ export const ModulePage = () => {
     });
   }, [rows, search, statusFilter]);
 
-  const pageSize = 8;
+  const pageSize = 10;
   const pagedRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 

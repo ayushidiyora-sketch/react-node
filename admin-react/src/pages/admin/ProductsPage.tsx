@@ -6,6 +6,7 @@ import {
   Chip,
   IconButton,
   MenuItem,
+  Pagination,
   Paper,
   Stack,
   Tab,
@@ -25,11 +26,14 @@ import { toast } from "sonner";
 import { productService, type ProductItem } from "../../services/productService.ts";
 import { wishlistService } from "../../services/wishlistService.ts";
 
+const pageSize = 10;
+
 export const ProductsPage = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [page, setPage] = useState(1);
 
   const getStatusChipStyles = (status: "pending" | "approved" | "rejected") => {
     if (status === "approved") {
@@ -78,6 +82,21 @@ export const ProductsPage = () => {
       }),
     [products, search, statusFilter],
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const pageRows = filteredProducts.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = filteredProducts.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = filteredProducts.length === 0 ? 0 : Math.min(page * pageSize, filteredProducts.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -156,7 +175,7 @@ export const ProductsPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredProducts.map(item => (
+            {pageRows.map(item => (
               <TableRow key={item._id} hover>
                 <TableCell>
                   {item.featureImage ? (
@@ -222,6 +241,22 @@ export const ProductsPage = () => {
             ))}
           </TableBody>
         </Table>
+
+        {filteredProducts.length > 0 ? (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
+            <Typography variant="body2" color="var(--skote-subtle)">
+              Showing {startRow}-{endRow} of {filteredProducts.length} Results
+            </Typography>
+            <Pagination
+              page={page}
+              count={totalPages}
+              onChange={(_event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              size="small"
+            />
+          </Stack>
+        ) : null}
 
         {filteredProducts.length === 0 && (
           <Typography sx={{ mt: 2, color: "var(--skote-subtle)", textAlign: "center" }}>

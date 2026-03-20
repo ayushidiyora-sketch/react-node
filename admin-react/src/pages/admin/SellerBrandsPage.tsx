@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogTitle,
   Paper,
+  Pagination,
   Stack,
   Table,
   TableBody,
@@ -45,7 +46,9 @@ const getStatusChipStyles = (status: SellerBrand["status"]) => {
 };
 
 export const SellerBrandsPage = () => {
+  const pageSize = 10;
   const [items, setItems] = useState<SellerBrand[]>([]);
+  const [page, setPage] = useState(1);
   const [selectedBrand, setSelectedBrand] = useState<SellerBrand | null>(null);
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
   const [form, setForm] = useState({ brandName: "", description: "" });
@@ -70,6 +73,19 @@ export const SellerBrandsPage = () => {
   useEffect(() => {
     void loadItems();
   }, []);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [items.length, page]);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pageRows = items.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = items.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = items.length === 0 ? 0 : Math.min(page * pageSize, items.length);
 
   const resetForm = () => {
     setEditingBrandId(null);
@@ -301,7 +317,7 @@ export const SellerBrandsPage = () => {
                   No brands submitted yet.
                 </TableCell>
               </TableRow>
-            ) : items.map(item => (
+            ) : pageRows.map(item => (
               <TableRow key={item._id} hover>
                 <TableCell>
                   {item.logo ? <Avatar src={item.logo} alt={item.brandName} variant="rounded" sx={{ width: 34, height: 34 }} /> : <Avatar variant="rounded" sx={{ width: 34, height: 34 }}>{item.brandName[0]?.toUpperCase() ?? "B"}</Avatar>}
@@ -354,6 +370,22 @@ export const SellerBrandsPage = () => {
             ))}
           </TableBody>
         </Table>
+
+        {items.length > 0 ? (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
+            <Typography variant="body2" sx={{ color: "var(--skote-subtle)" }}>
+              Showing {startRow}-{endRow} of {items.length} Results
+            </Typography>
+            <Pagination
+              page={page}
+              count={totalPages}
+              onChange={(_event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              size="small"
+            />
+          </Stack>
+        ) : null}
       </Paper>
 
       <Dialog open={Boolean(selectedBrand)} onClose={() => setSelectedBrand(null)} fullWidth maxWidth="sm">

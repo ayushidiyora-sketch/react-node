@@ -1,5 +1,5 @@
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-import { IconButton, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { IconButton, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,8 +15,11 @@ const formatDate = (value: string) => {
   return date.toLocaleDateString();
 };
 
+const pageSize = 10;
+
 export const WishlistProductsPage = () => {
   const [items, setItems] = useState<WishlistProduct[]>([]);
+  const [page, setPage] = useState(1);
 
   const loadWishlist = async () => {
     try {
@@ -37,6 +40,17 @@ export const WishlistProductsPage = () => {
       window.clearTimeout(timer);
     };
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pageRows = items.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = items.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = items.length === 0 ? 0 : Math.min(page * pageSize, items.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleRemove = async (id: string) => {
     try {
@@ -69,7 +83,7 @@ export const WishlistProductsPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map(item => {
+            {pageRows.map(item => {
               const product = item.product;
               const categoryName = product
                 ? (typeof product.category === "string" ? product.category : product.category?.name)
@@ -99,6 +113,22 @@ export const WishlistProductsPage = () => {
             })}
           </TableBody>
         </Table>
+
+        {items.length > 0 ? (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
+            <Typography variant="body2" color="var(--skote-subtle)">
+              Showing {startRow}-{endRow} of {items.length} Results
+            </Typography>
+            <Pagination
+              page={page}
+              count={totalPages}
+              onChange={(_event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              size="small"
+            />
+          </Stack>
+        ) : null}
 
         {items.length === 0 ? (
           <Typography sx={{ mt: 2, textAlign: "center", color: "var(--skote-subtle)" }}>

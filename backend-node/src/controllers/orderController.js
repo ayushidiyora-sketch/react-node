@@ -1,5 +1,6 @@
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const { sendOrderConfirmationEmail } = require("../services/orderEmailService");
 
 const stringToStableId = (value) => {
   let hash = 0;
@@ -128,10 +129,35 @@ const createOrder = async (req, res, next) => {
       orderDate: orderDate ? new Date(orderDate) : new Date(),
     });
 
+    let emailResult = { sent: false };
+
+    try {
+      emailResult = await sendOrderConfirmationEmail({
+        to: order.email,
+        orderId: order.orderId,
+        customerName: order.customerName,
+        products: order.products,
+        subtotal: order.subtotal,
+        shippingAmount: order.shippingAmount,
+        taxAmount: order.taxAmount,
+        taxRate: order.taxRate,
+        totalPrice: order.totalPrice,
+        currency: order.currency,
+        paymentMethod: order.paymentMethod,
+        address: order.address,
+        orderDate: order.orderDate,
+      });
+    } catch (emailError) {
+      console.error("Order confirmation email failed:", emailError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Order created",
       item: mapOrder(order),
+      email: {
+        sent: Boolean(emailResult.sent),
+      },
     });
   } catch (error) {
     return next(error);

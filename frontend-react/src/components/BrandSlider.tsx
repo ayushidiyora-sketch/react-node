@@ -1,20 +1,53 @@
-export const BrandSlider = () => {
-  const brands = [
-    "ONEPLUS",
-    "Tencent",
-    "Apple",
-    "Microsoft",
-    "Lenovo",
-    "HUAWEI",
-    "nexus",
-    "Google",
-    "Firefox",
-    "TESLA",
-    "brave",
-    "facebook",
-  ];
+import { useEffect, useMemo, useState } from "react";
 
-  const trackBrands = [...brands, ...brands];
+import { sellerService, type SellerBrandLogoItem } from "@/services/sellerService";
+import { toAbsoluteMediaUrl } from "@/utils/mediaUrl";
+
+const toAbsoluteLogoUrl = (value: string) => {
+  return toAbsoluteMediaUrl(value, { defaultUploadPath: "/uploads/sellers" });
+};
+
+export const BrandSlider = () => {
+  const [logos, setLogos] = useState<SellerBrandLogoItem[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadBrandLogos = async () => {
+      try {
+        const items = await sellerService.getPublicBrandLogos();
+
+        if (!mounted) {
+          return;
+        }
+
+        const cleaned = items
+          .map(item => ({
+            ...item,
+            logo: toAbsoluteLogoUrl(item.logo),
+          }))
+          .filter(item => Boolean(item.logo));
+
+        setLogos(cleaned);
+      } catch {
+        if (mounted) {
+          setLogos([]);
+        }
+      }
+    };
+
+    void loadBrandLogos();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const trackBrands = useMemo(() => (logos.length ? [...logos, ...logos] : []), [logos]);
+
+  if (!trackBrands.length) {
+    return null;
+  }
 
   return (
     <section className="w-full overflow-hidden bg-[#efefef] py-6 md:py-8">
@@ -34,10 +67,16 @@ export const BrandSlider = () => {
         >
           {trackBrands.map((brand, index) => (
             <div
-              key={`${brand}-${index}`}
-              className="flex h-24 min-w-[190px] items-center justify-center border border-[#d7d7db] bg-[#f7f7f8] px-6 text-3xl font-semibold tracking-tight text-[#30343f] md:h-28 md:min-w-[230px]"
+              key={`${brand.logo}-${index}`}
+              className="flex h-24 min-w-[190px] items-center justify-center border border-[#d7d7db] bg-[#f7f7f8] px-6 md:h-28 md:min-w-[230px]"
             >
-              <span className="select-none">{brand}</span>
+              <img
+                src={brand.logo}
+                alt={brand.brandName || brand.shopName || "Brand logo"}
+                className="h-12 w-auto max-w-[140px] object-contain md:h-14 md:max-w-[170px]"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           ))}
         </div>

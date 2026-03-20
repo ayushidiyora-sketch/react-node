@@ -24,6 +24,7 @@ const {
   getMySellerBrandById,
   updateMySellerBrand,
   deleteMySellerBrand,
+  getPublicSellerBrandLogos,
   getAdminSellerBrands,
   getAdminSellerBrandById,
   createAdminSellerBrand,
@@ -73,6 +74,7 @@ router.get("/brands/me", ...sellerAuthMiddleware, getMySellerBrands);
 router.get("/brands/me/:id", ...sellerAuthMiddleware, getMySellerBrandById);
 router.put("/brands/me/:id", ...sellerAuthMiddleware, updateMySellerBrand);
 router.delete("/brands/me/:id", ...sellerAuthMiddleware, deleteMySellerBrand);
+router.get("/brands/public", getPublicSellerBrandLogos);
 router.get("/brands", ...adminAuthMiddleware, getAdminSellerBrands);
 router.post("/brands/admin", ...adminAuthMiddleware, createAdminSellerBrand);
 router.get("/brands/:id", ...adminAuthMiddleware, getAdminSellerBrandById);

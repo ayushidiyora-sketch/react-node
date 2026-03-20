@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Button, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
@@ -16,8 +16,11 @@ type SubscriptionItem = {
   status: "pending" | "approved" | "rejected";
 };
 
+const pageSize = 10;
+
 export const SellerSubscriptionsPage = () => {
   const [items, setItems] = useState<SubscriptionItem[]>([]);
+  const [page, setPage] = useState(1);
 
   const loadItems = async () => {
     try {
@@ -38,6 +41,17 @@ export const SellerSubscriptionsPage = () => {
       window.clearTimeout(timer);
     };
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pageRows = items.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = items.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = items.length === 0 ? 0 : Math.min(page * pageSize, items.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const updateStatus = async (id: string, status: "approved" | "rejected") => {
     try {
@@ -89,7 +103,7 @@ export const SellerSubscriptionsPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map(item => (
+            {pageRows.map(item => (
               <TableRow key={item._id} hover>
                 <TableCell>{item.sellerName}</TableCell>
                 <TableCell>{item.planName}</TableCell>
@@ -109,6 +123,22 @@ export const SellerSubscriptionsPage = () => {
             ))}
           </TableBody>
         </Table>
+
+        {items.length > 0 ? (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
+            <Typography variant="body2" color="var(--skote-subtle)">
+              Showing {startRow}-{endRow} of {items.length} Results
+            </Typography>
+            <Pagination
+              page={page}
+              count={totalPages}
+              onChange={(_event, value) => setPage(value)}
+              shape="rounded"
+              color="primary"
+              size="small"
+            />
+          </Stack>
+        ) : null}
       </Paper>
     </Stack>
   );

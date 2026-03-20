@@ -5,6 +5,7 @@ import { commerceApi, type ApiCartItem } from "@/lib/api";
 import { type Product, getProductById } from "@/lib/products";
 
 const CART_STORAGE_KEY = "shopo-cart-items";
+const enableRemoteCartApi = import.meta.env.VITE_ENABLE_LEGACY_CART_API === "true";
 
 export type CartItem = Product & {
   quantity: number;
@@ -63,6 +64,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, [items]);
 
   useEffect(() => {
+    if (!enableRemoteCartApi) {
+      return;
+    }
+
     let isActive = true;
 
     const syncCart = async () => {
@@ -99,13 +104,15 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
     setItems(nextItems);
 
-    try {
-      const response = await commerceApi.addToCart(product.id, quantity);
-      setItems(mapCartItems(response.items));
-    } catch {
-      toast.message("Cart saved locally.", {
-        description: "Start the API server to persist cart data to MongoDB.",
-      });
+    if (enableRemoteCartApi) {
+      try {
+        const response = await commerceApi.addToCart(product.id, quantity);
+        setItems(mapCartItems(response.items));
+      } catch {
+        toast.message("Cart saved locally.", {
+          description: "Start the API server to persist cart data to MongoDB.",
+        });
+      }
     }
 
     toast.success(`${product.name} added to cart.`);
@@ -115,11 +122,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     const nextItems = items.filter(item => item.id !== productId);
     setItems(nextItems);
 
-    try {
-      const response = await commerceApi.removeCartItem(productId);
-      setItems(mapCartItems(response.items));
-    } catch {
-      // Keep the locally updated state if the API is unavailable.
+    if (enableRemoteCartApi) {
+      try {
+        const response = await commerceApi.removeCartItem(productId);
+        setItems(mapCartItems(response.items));
+      } catch {
+        // Keep the locally updated state if the API is unavailable.
+      }
     }
   };
 
@@ -130,19 +139,25 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
     setItems(nextItems);
 
-    try {
-      const response = quantity <= 0
-        ? await commerceApi.removeCartItem(productId)
-        : await commerceApi.updateCartItem(productId, quantity);
+    if (enableRemoteCartApi) {
+      try {
+        const response = quantity <= 0
+          ? await commerceApi.removeCartItem(productId)
+          : await commerceApi.updateCartItem(productId, quantity);
 
-      setItems(mapCartItems(response.items));
-    } catch {
-      // Keep the locally updated state if the API is unavailable.
+        setItems(mapCartItems(response.items));
+      } catch {
+        // Keep the locally updated state if the API is unavailable.
+      }
     }
   };
 
   const clearCart = async () => {
     setItems([]);
+
+    if (!enableRemoteCartApi) {
+      return;
+    }
 
     // Only attempt to delete from the catalog API server for items that came from it
     // (no backendId). Products from the shopo-backend use derived numeric IDs that

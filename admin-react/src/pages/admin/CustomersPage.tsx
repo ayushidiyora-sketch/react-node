@@ -1,6 +1,6 @@
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import { Alert, Button, Checkbox, Chip, CircularProgress, MenuItem, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Button, Checkbox, Chip, CircularProgress, Pagination, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
 import { adminService, type CustomerHistoryItem } from "../../services/adminService.ts";
@@ -18,12 +18,11 @@ const formatDate = (value: string) => {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const pageSizeOptions = [10, 20, 30];
+const pageSize = 10;
 
 export const CustomersPage = () => {
   const [rows, setRows] = useState<CustomerHistoryItem[]>([]);
   const [search, setSearch] = useState("");
-  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -58,6 +57,14 @@ export const CustomersPage = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const pageRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+  const startRow = filteredRows.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = filteredRows.length === 0 ? 0 : Math.min(page * pageSize, filteredRows.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <Stack spacing={2.2}>
@@ -69,20 +76,6 @@ export const CustomersPage = () => {
       <Paper sx={{ p: 2.2, borderRadius: 2.5, border: "1px solid var(--skote-border)", boxShadow: "none" }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" mb={2}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <TextField
-              select
-              size="small"
-              value={pageSize}
-              onChange={event => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-              sx={{ minWidth: 140 }}
-            >
-              {pageSizeOptions.map(option => (
-                <MenuItem key={option} value={option}>Show {option}</MenuItem>
-              ))}
-            </TextField>
             <TextField
               size="small"
               placeholder="search..."
@@ -163,7 +156,7 @@ export const CustomersPage = () => {
 
         <Stack direction="row" justifyContent="space-between" alignItems="center" mt={2.2}>
           <Typography variant="body2" color="var(--skote-subtle)">
-            Showing {Math.min(pageSize, filteredRows.length)} of {filteredRows.length} Results
+            Showing {startRow}-{endRow} of {filteredRows.length} Results
           </Typography>
           <Pagination
             page={page}
